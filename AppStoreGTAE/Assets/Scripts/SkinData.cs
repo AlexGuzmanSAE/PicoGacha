@@ -10,7 +10,7 @@ public class SkinData
     public int price;
     public int rarity;
 
-    public static SkinData FromDictionary(string key, Dictionary<string, object> data)
+    public static SkinData FromDictionary(string key, IDictionary<string, object> data)
     {
         var skin = new SkinData();
         skin.ID = key;
