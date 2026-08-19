@@ -2665,6 +2665,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1620828277}
   - component: {fileID: 1620828278}
+  - component: {fileID: 1620828279}
   m_Layer: 0
   m_Name: FirebaseManager
   m_TagString: Untagged
@@ -2707,6 +2708,20 @@ MonoBehaviour:
   messageText: {fileID: 0}
   panelAuth: {fileID: 1369412463}
   panelLogueado: {fileID: 0}
+--- !u!114 &1620828279
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1620828276}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48d08b6eafece59478f4b8bfc559cddb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::StoreManager
+  contentPanel: {fileID: 721842426}
+  skinCardPrefab: {fileID: 5583353989192673271, guid: ff55f8aa5df1ae34f89e12d09dfe8b48, type: 3}
 --- !u!1 &1681366241
 GameObject:
   m_ObjectHideFlags: 0
