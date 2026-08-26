@@ -26,6 +26,32 @@ public class SkinCardUI : MonoBehaviour
             Debug.LogWarning("Sprite not found for skin: " + skinData.img);
         }
 
+        int rarity = skinData.rarity;
+        Color rarityColor = Color.white;
+        
+        switch(rarity)
+        {
+            case 0:
+                rarityColor = Color.gray; // Common
+                break;
+            case 1:
+                rarityColor = Color.green; // Uncommon
+                break;
+            case 2:
+                rarityColor = Color.blue; // Rare
+                break;
+            case 3:
+                rarityColor = Color.magenta; // Epic
+                break;
+            case 4:
+                rarityColor = Color.yellow; // Legendary
+                break;
+            default:
+                rarityColor = Color.red;
+                break;
+        }
+
+
 
     }
 }
