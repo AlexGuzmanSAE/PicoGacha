@@ -1,57 +1,87 @@
-using System;
 using UnityEngine;
-using TMPro;
 using UnityEngine.UI;
+using TMPro;
 
+
+// Una tarjeta individual: imagen, nombre, precio y boton de compra.
+//
+// La imagen NO se descarga de internet: ya esta adentro de Unity, en
+// Assets/Resources/Skins/. El nombre del archivo debe ser igual al campo
+// "spriteName" que viene de Firebase (sin la extension .png).
+//
+// Ponlo en un prefab con: Image, Text (nombre), Text (precio), Button con
+// su propio Text (para la etiqueta "Comprar" / "Comprada" / "Sin saldo").
 public class SkinCardUI : MonoBehaviour
 {
     [SerializeField] private Image skinImage;
-    [SerializeField] private Image rarity;
-    [SerializeField] private TMP_Text skinName;
+    [SerializeField] private TMP_Text nameText;
     [SerializeField] private TMP_Text priceText;
+    [SerializeField] private Button buyButton;
+    [SerializeField] private TMP_Text buyButtonLabel;
 
-    public void SetUp(SkinData skinData)
+    private SkinData skin;
+
+    public void Setup(SkinData skin)
     {
-        skinName.text = skinData.name;
-        priceText.text = skinData.price.ToString();
+        this.skin = skin;
 
-        var sprite = Resources.Load<Sprite>("Skins/" + skinData.img);
+        nameText.text = skin.name;
+        priceText.text = skin.price + " monedas";
 
-        if(sprite != null)
+        var sprite = Resources.Load<Sprite>("Skins/" + skin.name);
+        if (sprite != null)
         {
             skinImage.sprite = sprite;
         }
         else
         {
-            Debug.LogWarning("Sprite not found for skin: " + skinData.img);
+            Debug.LogWarning("No se encontro el sprite: " + skin.name);
         }
 
-        int rarity = skinData.rarity;
-        Color rarityColor = Color.white;
-        
-        switch(rarity)
+        buyButton.onClick.RemoveAllListeners();
+        buyButton.onClick.AddListener(OnBuyClicked);
+
+        RefreshButtonState();
+    }
+
+    // decide que dice el boton y si se puede apretar, segun si hay sesion,
+    // si ya la compro, o si le alcanzan las monedas
+    private void RefreshButtonState()
+    {
+        var store = StoreManager.Instance;
+
+        if (store == null || !store.HasUser)
         {
-            case 0:
-                rarityColor = Color.gray; // Common
-                break;
-            case 1:
-                rarityColor = Color.green; // Uncommon
-                break;
-            case 2:
-                rarityColor = Color.blue; // Rare
-                break;
-            case 3:
-                rarityColor = Color.magenta; // Epic
-                break;
-            case 4:
-                rarityColor = Color.yellow; // Legendary
-                break;
-            default:
-                rarityColor = Color.red;
-                break;
+            SetButton("Inicia sesion", false);
+            return;
         }
 
+        if (store.IsPurchased(skin.ID))
+        {
+            SetButton("Comprada", false);
+            return;
+        }
 
+        bool canAfford = store.CurrentCoins >= skin.price;
+        SetButton(canAfford ? "Comprar" : "Sin saldo", canAfford);
+    }
 
+    private void SetButton(string label, bool interactable)
+    {
+        if (buyButtonLabel != null) buyButtonLabel.text = label;
+        buyButton.interactable = interactable;
+    }
+
+    private void OnBuyClicked()
+    {
+        buyButton.interactable = false;
+
+        StoreManager.Instance.TryPurchaseSkin(skin.ID, (success, message) =>
+        {
+            Debug.Log("[SkinCardUI] " + message);
+            // no hace falta actualizar el boton a mano: comprar cambia las
+            // monedas y "purchased" en Firebase, y eso hace que
+            // SkinStoreManager vuelva a dibujar toda la tienda
+        });
     }
 }
