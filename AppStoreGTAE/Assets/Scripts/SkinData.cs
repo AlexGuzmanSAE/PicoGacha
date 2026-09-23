@@ -9,6 +9,9 @@ public class SkinData
     public string name;
     public int price;
     public int rarity;
+    // Opcional: id del efecto 3D (ej "cap_blue"). Si el nodo no lo trae,
+    // queda "" = sin efecto, no rompe las skins existentes.
+    public string effectId;
 
     public static SkinData FromDictionary(string key, IDictionary<string, object> data)
     {
@@ -27,6 +30,8 @@ public class SkinData
         {
             int.TryParse(data["rarity"].ToString(), out skin.rarity);
         }
+
+        skin.effectId = data.ContainsKey("effectId") ? data["effectId"].ToString() : "";
 
         return skin;
     }

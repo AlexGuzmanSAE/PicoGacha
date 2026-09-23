@@ -19,25 +19,39 @@ public class SkinCardUI : MonoBehaviour
     [SerializeField] private Button buyButton;
     [SerializeField] private TMP_Text buyButtonLabel;
 
+    // OwnedScreen lo pone en true antes de Setup: la tarjeta pasa a ser
+    // "Equipar / Equipado" en vez de "Comprar".
+    public bool equipMode;
+
     private SkinData skin;
 
     public void Setup(SkinData skin)
     {
         this.skin = skin;
 
-        nameText.text = skin.name;
-        priceText.text = skin.price + " monedas";
+        if (nameText != null) nameText.text = skin.name;
+        else Debug.LogError("[SkinCardUI] nameText sin conectar en el prefab.");
+        if (priceText != null) priceText.text = skin.price + " monedas";
 
-        var sprite = Resources.Load<Sprite>("Skins/" + skin.name);
-        if (sprite != null)
+        if (skinImage != null)
         {
-            skinImage.sprite = sprite;
+            var sprite = Resources.Load<Sprite>("Skins/" + skin.img);
+            if (sprite != null)
+            {
+                skinImage.sprite = sprite;
+            }
+            else
+            {
+                Debug.LogWarning("No se encontro el sprite: Skins/" + skin.img + " (revisa img en Firebase y el archivo en Resources/Skins/)");
+            }
         }
-        else
-        {
-            Debug.LogWarning("No se encontro el sprite: " + skin.name);
-        }
+        else Debug.LogError("[SkinCardUI] skinImage sin conectar en el prefab.");
 
+        if (buyButton == null)
+        {
+            Debug.LogError("[SkinCardUI] buyButton sin conectar en el prefab. Conectalo o la compra no funcionara.");
+            return;
+        }
         buyButton.onClick.RemoveAllListeners();
         buyButton.onClick.AddListener(OnBuyClicked);
 
@@ -56,6 +70,19 @@ public class SkinCardUI : MonoBehaviour
             return;
         }
 
+        if (equipMode)
+        {
+            if (store.IsEquipped(skin.ID)) SetButton("Equipado", false);
+            else SetButton("Equipar", true);
+            return;
+        }
+
+        if (store.IsEquipped(skin.ID))
+        {
+            SetButton("Equipado", false);
+            return;
+        }
+
         if (store.IsPurchased(skin.ID))
         {
             SetButton("Comprada", false);
@@ -69,19 +96,23 @@ public class SkinCardUI : MonoBehaviour
     private void SetButton(string label, bool interactable)
     {
         if (buyButtonLabel != null) buyButtonLabel.text = label;
-        buyButton.interactable = interactable;
+        if (buyButton != null) buyButton.interactable = interactable;
     }
 
     private void OnBuyClicked()
     {
-        buyButton.interactable = false;
+        if (equipMode)
+        {
+            StoreManager.Instance?.Equip(skin.ID);
+            return;
+        }
+
+        if (buyButton != null) buyButton.interactable = false;
 
         StoreManager.Instance.TryPurchaseSkin(skin.ID, (success, message) =>
         {
-            Debug.Log("[SkinCardUI] " + message);
-            // no hace falta actualizar el boton a mano: comprar cambia las
-            // monedas y "purchased" en Firebase, y eso hace que
-            // SkinStoreManager vuelva a dibujar toda la tienda
+            // Sin logs: la UI lo refleja (botones y monedas se redibujan solos
+            // cuando Firebase confirma la compra).
         });
     }
 }

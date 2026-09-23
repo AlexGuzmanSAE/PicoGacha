@@ -38,14 +38,29 @@ public class StoreManager : MonoBehaviour
     [Header("Monedas (opcional)")]
     [SerializeField] private TMP_Text coinsText;
 
+    [Header("Avisos (opcional: muestra errores como el de permisos)")]
+    [SerializeField] private TMP_Text statusText;
+
     private DatabaseReference dbRoot;
     private string uid; // null si no hay sesion iniciada
+
+    // Se guardan las instancias para el detach: quitar el listener con un
+    // Child() nuevo no remueve nada y los listeners se duplican.
+    private DatabaseReference coinsRef;
+    private DatabaseReference purchasedRef;
+    private DatabaseReference equippedRef;
 
     private readonly Dictionary<string, SkinData> currentSkins = new Dictionary<string, SkinData>();
     private readonly HashSet<string> purchasedSkinIds = new HashSet<string>();
 
     public long CurrentCoins { get; private set; }
     public bool HasUser => uid != null;
+    public string EquippedId { get; private set; } = "";
+    public IReadOnlyDictionary<string, SkinData> Catalog => currentSkins;
+
+    // OwnedScreen y SkinPreview3D se suscriben para refrescarse solos.
+    public event Action OnChanged;
+    public event Action<string> OnEquippedChanged;
 
     private void Awake()
     {
@@ -99,6 +114,7 @@ public class StoreManager : MonoBehaviour
 
         uid = user != null ? user.UserId : null;
         purchasedSkinIds.Clear();
+        EquippedId = "";
         CurrentCoins = 0;
         UpdateCoinsText();
 
@@ -108,8 +124,9 @@ public class StoreManager : MonoBehaviour
             return;
         }
 
-        var coinsRef = dbRoot.Child("users").Child(uid).Child("coins");
-        var purchasedRef = dbRoot.Child("users").Child(uid).Child("purchased");
+        coinsRef = dbRoot.Child("users").Child(uid).Child("coins");
+        purchasedRef = dbRoot.Child("users").Child(uid).Child("purchased");
+        equippedRef = dbRoot.Child("users").Child(uid).Child("equipped");
 
         // si el jugador es nuevo, le damos las monedas iniciales
         coinsRef.GetValueAsync().ContinueWithOnMainThread(task =>
@@ -122,20 +139,24 @@ public class StoreManager : MonoBehaviour
 
         coinsRef.ValueChanged += OnCoinsChanged;
         purchasedRef.ValueChanged += OnPurchasedChanged;
+        equippedRef.ValueChanged += OnEquippedValue;
     }
 
     private void DetachPlayerListeners()
     {
-        if (dbRoot == null || uid == null) return;
-        dbRoot.Child("users").Child(uid).Child("coins").ValueChanged -= OnCoinsChanged;
-        dbRoot.Child("users").Child(uid).Child("purchased").ValueChanged -= OnPurchasedChanged;
+        if (coinsRef != null) coinsRef.ValueChanged -= OnCoinsChanged;
+        if (purchasedRef != null) purchasedRef.ValueChanged -= OnPurchasedChanged;
+        if (equippedRef != null) equippedRef.ValueChanged -= OnEquippedValue;
+        coinsRef = null;
+        purchasedRef = null;
+        equippedRef = null;
     }
 
     private void OnCoinsChanged(object sender, ValueChangedEventArgs args)
     {
         if (args.DatabaseError != null)
         {
-            Debug.LogError("Error leyendo monedas: " + args.DatabaseError.Message);
+            ReportDbError("monedas", args.DatabaseError);
             return;
         }
 
@@ -154,7 +175,7 @@ public class StoreManager : MonoBehaviour
     {
         if (args.DatabaseError != null)
         {
-            Debug.LogError("Error leyendo compras: " + args.DatabaseError.Message);
+            ReportDbError("compras", args.DatabaseError);
             return;
         }
 
@@ -170,9 +191,41 @@ public class StoreManager : MonoBehaviour
         RedrawCards();
     }
 
+    private void OnEquippedValue(object sender, ValueChangedEventArgs args)
+    {
+        if (args.DatabaseError != null)
+        {
+            ReportDbError("equipped", args.DatabaseError);
+            return;
+        }
+
+        EquippedId = (args.Snapshot != null && args.Snapshot.Exists)
+            ? args.Snapshot.Value.ToString()
+            : "";
+        // Si lo equipaste en la PWA, el accesorio 3D cambia aqui solo.
+        OnEquippedChanged?.Invoke(EquippedId);
+        RedrawCards();
+    }
+
     private void UpdateCoinsText()
     {
         if (coinsText != null) coinsText.text = "Monedas: " + CurrentCoins;
+    }
+
+    // Centraliza errores de lectura: log + aviso visible si hay statusText.
+    // El "permission denied" casi siempre = reglas de RTDB en la consola.
+    private void ReportDbError(string what, DatabaseError error)
+    {
+        Debug.LogError("Error leyendo " + what + ": " + error.Message);
+        if (error.Message != null && error.Message.ToLower().Contains("permission"))
+        {
+            SetStatus("Sin permiso en Firebase (" + what + "). Revisa Realtime Database > Reglas en la consola.");
+        }
+    }
+
+    private void SetStatus(string message)
+    {
+        if (statusText != null) statusText.text = message;
     }
 
     // ---------------------------------------------------------------
@@ -207,6 +260,8 @@ public class StoreManager : MonoBehaviour
     {
         if (contentParent == null || cardPrefab == null) return;
 
+        EnsureStoreLayout();
+
         foreach (Transform child in contentParent)
         {
             Destroy(child.gameObject);
@@ -215,8 +270,44 @@ public class StoreManager : MonoBehaviour
         foreach (var skin in currentSkins.Values)
         {
             var card = Instantiate(cardPrefab, contentParent);
+            // Altura fija ante el VerticalLayoutGroup (por si el prefab
+            // no trae LayoutElement).
+            var layout = card.GetComponent<LayoutElement>();
+            if (layout == null) layout = card.gameObject.AddComponent<LayoutElement>();
+            layout.preferredHeight = 1070;
             card.Setup(skin);
         }
+
+        OnChanged?.Invoke();
+    }
+
+    // Deja el Content como el template oficial de ScrollView:
+    // estirado arriba, pivote arriba, grupo vertical + fitter vertical.
+    // Asi el scroll funciona aunque la escena venga mal configurada.
+    private void EnsureStoreLayout()
+    {
+        var rt = contentParent as RectTransform;
+        if (rt != null)
+        {
+            rt.anchorMin = new Vector2(0, 1);
+            rt.anchorMax = new Vector2(1, 1);
+            rt.pivot = new Vector2(0.5f, 1);
+            rt.anchoredPosition = Vector2.zero;
+        }
+
+        var group = contentParent.GetComponent<VerticalLayoutGroup>();
+        if (group == null) group = contentParent.gameObject.AddComponent<VerticalLayoutGroup>();
+        group.spacing = 20;
+        group.childAlignment = TextAnchor.UpperCenter;
+        group.childControlWidth = false;
+        group.childControlHeight = true;
+        group.childForceExpandWidth = true;
+        group.childForceExpandHeight = false;
+
+        var fitter = contentParent.GetComponent<ContentSizeFitter>();
+        if (fitter == null) fitter = contentParent.gameObject.AddComponent<ContentSizeFitter>();
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
     }
 
     // ---------------------------------------------------------------
@@ -224,6 +315,24 @@ public class StoreManager : MonoBehaviour
     // ---------------------------------------------------------------
 
     public bool IsPurchased(string skinId) => purchasedSkinIds.Contains(skinId);
+    public bool IsEquipped(string skinId) => !string.IsNullOrEmpty(skinId) && EquippedId == skinId;
+
+    // Marca una skin comprada como equipada. El accesorio 3D reacciona
+    // al cambio via OnEquippedChanged (tanto si equipas aqui como en la PWA).
+    public void Equip(string skinId)
+    {
+        if (uid == null || dbRoot == null) return;
+        if (!IsPurchased(skinId))
+        {
+            Debug.LogWarning("[Store] No puedes equipar lo que no tienes: " + skinId);
+            return;
+        }
+        dbRoot.Child("users").Child(uid).Child("equipped").SetValueAsync(skinId)
+            .ContinueWithOnMainThread(t =>
+            {
+                if (t.IsFaulted) Debug.LogError("[Store] Equip error: " + t.Exception?.Message);
+            });
+    }
 
     // intenta comprar una skin: valida saldo, descuenta monedas de forma
     // atomica (transaccion) y agrega la skin a "purchased".
@@ -281,6 +390,8 @@ public class StoreManager : MonoBehaviour
             dbRoot.Child("users").Child(uid).Child("purchased").Child(skinId).SetValueAsync(true)
                 .ContinueWithOnMainThread(_ =>
                 {
+                    // Auto-equipa al comprar para que el efecto 3D se vea al instante.
+                    Equip(skinId);
                     onComplete?.Invoke(true, "Compraste " + skin.name + ".");
                 });
         });

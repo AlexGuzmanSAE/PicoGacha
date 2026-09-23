@@ -132,8 +132,8 @@ public class AuthManager : MonoBehaviour
 
     private void SetMessage(string message)
     {
+        // Solo UI: el texto en pantalla ya muestra el mensaje, sin logs.
         if (messageText != null) messageText.text = message;
-        Debug.Log("[AuthManager] " + message);
     }
 
     // traduce los errores mas comunes de Firebase a un mensaje simple.
