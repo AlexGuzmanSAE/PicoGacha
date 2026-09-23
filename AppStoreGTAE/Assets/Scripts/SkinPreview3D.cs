@@ -1,33 +1,32 @@
+using System;
+using System.Collections.Generic;
 using UnityEngine;
 
-// Vista previa 3D: al equipar una skin, muestra su accesorio sobre el
-// personaje. Si equipas desde la PWA (users/{uid}/equipped), el cambio
-// llega por listener y el accesorio cambia aqui solo.
-//
-// Normalmente lo agrega solo el SkinPreviewBootstrap al PicoChan de la
-// escena, con la config de Resources. También lo puedes agregar a mano:
-// arrastra el PicoChan + el asset de config en el inspector.
 public class SkinPreview3D : MonoBehaviour
 {
-    [Header("Ancla (vacio = se crea sobre el personaje)")]
-    [SerializeField] private Transform headAnchor;
-    [SerializeField] private Vector3 autoAnchorOffset = new Vector3(0, 1.7f, 0);
-
-    [Header("Config de efectos")]
-    [SerializeField] private SkinEffectConfig effectConfig;
-
-    private GameObject currentAccessory;
-
-    // Para configurarlo por codigo (lo usa SkinPreviewBootstrap).
-    public void Configure(SkinEffectConfig config)
+    [Serializable]
+    public class WardrobeSlot
     {
-        effectConfig = config;
-        RefreshFromStore();
+        public string key = "";
+        public GameObject accessory;
     }
+
+
+    [SerializeField] private string characterName = "PicoChan";
+    [SerializeField] private Transform characterRoot;
+
+
+    [SerializeField] private List<WardrobeSlot> slots = new List<WardrobeSlot>();
+
+    [SerializeField] private string accessoryPrefix = "Accessory_";
 
     private void Start()
     {
-        EnsureAnchor();
+        if (characterRoot == null && !string.IsNullOrEmpty(characterName))
+        {
+            var character = GameObject.Find(characterName);
+            if (character != null) characterRoot = character.transform;
+        }
         if (StoreManager.Instance != null)
         {
             StoreManager.Instance.OnEquippedChanged += HandleEquipped;
@@ -37,6 +36,7 @@ public class SkinPreview3D : MonoBehaviour
         {
             Invoke(nameof(RetrySubscribe), 0.5f);
         }
+        HideAll();
         RefreshFromStore();
     }
 
@@ -57,70 +57,81 @@ public class SkinPreview3D : MonoBehaviour
 
     private void RefreshFromStore()
     {
-        if (StoreManager.Instance == null || effectConfig == null) return;
+        if (StoreManager.Instance == null) return;
         string id = StoreManager.Instance.EquippedId;
-        if (string.IsNullOrEmpty(id)) { ClearAccessory(); return; }
-        if (!StoreManager.Instance.Catalog.TryGetValue(id, out SkinData skin))
-            return; // catalogo aun cargando
-        if (effectConfig.TryGetForSkin(skin, out var entry))
-            ShowEntry(entry);
-        else
-            ClearAccessory();
+        if (string.IsNullOrEmpty(id))
+        {
+            HideAll();
+            return;
+        }
+        string key = id;
+        if (StoreManager.Instance.Catalog.TryGetValue(id, out SkinData skin) &&
+            !string.IsNullOrEmpty(skin.effectId))
+        {
+            key = skin.effectId;
+        }
+        ShowKey(key);
     }
 
-    // Muestra el accesorio del effectId ("" o desconocido = quitar).
     public void ShowEffect(string effectId)
     {
-        ClearAccessory();
-        if (string.IsNullOrEmpty(effectId) || effectConfig == null) return;
-        if (!effectConfig.TryGet(effectId, out var entry)) return;
-        ShowEntry(entry);
-    }
-
-    private void ShowEntry(SkinEffectConfig.EffectEntry entry)
-    {
-        ClearAccessory();
-        EnsureAnchor();
-
-        PrimitiveType type = PrimitiveType.Sphere;
-        switch (entry.primitive)
-        {
-            case SkinEffectConfig.PrimitiveKind.Cube: type = PrimitiveType.Cube; break;
-            case SkinEffectConfig.PrimitiveKind.Cylinder: type = PrimitiveType.Cylinder; break;
-            case SkinEffectConfig.PrimitiveKind.Capsule: type = PrimitiveType.Capsule; break;
-        }
-        currentAccessory = GameObject.CreatePrimitive(type);
-        currentAccessory.name = "Accessory_" + entry.effectId;
-        // Sin fisicas: fuera colliders para que no empuje al personaje.
-        foreach (var c in currentAccessory.GetComponents<Collider>())
-            Destroy(c);
-        currentAccessory.transform.SetParent(headAnchor, false);
-        currentAccessory.transform.localPosition = entry.localOffset;
-        currentAccessory.transform.localScale = entry.localScale;
-
-        var renderer = currentAccessory.GetComponent<Renderer>();
-        if (renderer != null)
-        {
-            var mat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-            mat.color = entry.color;
-            renderer.material = mat;
-        }
+        if (string.IsNullOrEmpty(effectId)) HideAll();
+        else ShowKey(effectId);
     }
 
     public void ClearAccessory()
     {
-        if (currentAccessory != null)
-            Destroy(currentAccessory);
-        currentAccessory = null;
+        HideAll();
     }
 
-    private void EnsureAnchor()
+    private bool HasWiredSlots()
     {
-        if (headAnchor != null) return;
-        var go = new GameObject("HeadAnchor");
-        go.transform.SetParent(transform, false);
-        go.transform.localPosition = autoAnchorOffset;
-        headAnchor = go.transform;
+        if (slots == null) return false;
+        foreach (var s in slots)
+        {
+            if (s != null && s.accessory != null) return true;
+        }
+        return false;
+    }
+
+    private void ShowKey(string key)
+    {
+        if (HasWiredSlots())
+        {
+            foreach (var s in slots)
+            {
+                if (s == null || s.accessory == null) continue;
+                s.accessory.SetActive(s.key == key);
+            }
+            return;
+        }
+        if (characterRoot == null) return;
+        foreach (Transform child in characterRoot)
+        {
+            string n = child.name;
+            if (!n.StartsWith(accessoryPrefix)) continue;
+            string rest = n.Substring(accessoryPrefix.Length);
+            child.gameObject.SetActive(rest == key || rest.StartsWith(key + "_"));
+        }
+    }
+
+    private void HideAll()
+    {
+        if (HasWiredSlots())
+        {
+            foreach (var s in slots)
+            {
+                if (s == null || s.accessory == null) continue;
+                s.accessory.SetActive(false);
+            }
+            return;
+        }
+        if (characterRoot == null) return;
+        foreach (Transform child in characterRoot)
+        {
+            if (child.name.StartsWith(accessoryPrefix))
+                child.gameObject.SetActive(false);
+        }
     }
 
     private void OnDestroy()
