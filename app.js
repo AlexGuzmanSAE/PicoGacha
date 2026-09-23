@@ -66,6 +66,12 @@ $("btn-coins").onclick = async () => {
   await coinsRef.transaction((c) => Number(c ?? 0) + 1000);
 };
 
+// Solo test: quita monedas (no baja de 0).
+$("btn-coins-less").onclick = async () => {
+  if (!coinsRef) return;
+  await coinsRef.transaction((c) => Math.max(0, Number(c ?? 0) - 1000));
+};
+
 function friendlyAuthError(e) {
   switch (e.code) {
     case "auth/weak-password": return "la contraseña necesita al menos 6 caracteres.";
