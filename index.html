@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>PicoGacha · Tienda</title>
+  <meta name="description" content="Tienda PWA de skins PicoGacha con Firebase." />
+  <meta name="theme-color" content="#16213e" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./img/icon-192.png" />
+  <link rel="apple-touch-icon" href="./img/icon-192.png" />
+  <link rel="stylesheet" href="./styles.css" />
+
+  <!-- Firebase SDK (versión compat = la más simple con <script> clásico).
+       OJO: requiere internet la primera vez (se descargan de Google). -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>🛍️ PicoGacha</h1>
+    <div id="coins" class="coins">Monedas: --</div>
+  </header>
+
+  <main>
+    <!-- ============ AUTH ============ -->
+    <section id="auth-panel" class="card">
+      <h2>Inicia sesión</h2>
+      <p class="hint">Usa el <b>mismo correo y contraseña</b> que en Unity: es la misma cuenta de Firebase.</p>
+      <input id="email" type="email" placeholder="correo@ejemplo.com" autocomplete="email" />
+      <input id="password" type="password" placeholder="contraseña (mín. 6)" autocomplete="current-password" />
+      <div class="row">
+        <button id="btn-login">Entrar</button>
+        <button id="btn-register" class="ghost">Crear cuenta</button>
+      </div>
+    </section>
+
+    <!-- ============ APP (visible con sesión) ============ -->
+    <section id="app-panel" class="hidden">
+      <div class="row between">
+        <span id="user-email" class="hint"></span>
+        <div class="row" style="margin-top:0">
+          <button id="btn-coins" class="ghost small" title="Solo para testear">+1000 🪙 test</button>
+          <button id="btn-logout" class="ghost small">Cerrar sesión</button>
+        </div>
+      </div>
+
+      <nav class="tabs">
+        <button id="tab-store" class="active">Tienda</button>
+        <button id="tab-owned">Mis objetos <span id="owned-count"></span></button>
+      </nav>
+
+      <div id="store-grid" class="grid"></div>
+      <div id="owned-grid" class="grid hidden"></div>
+      <p id="owned-empty" class="hint hidden">Aún no tienes objetos. Compra en la tienda 👆</p>
+    </section>
+
+    <p id="status" class="status"></p>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>
