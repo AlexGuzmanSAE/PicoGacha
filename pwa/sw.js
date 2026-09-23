@@ -1,7 +1,7 @@
 // Service Worker de PicoGacha: cachea el "app shell" para que la PWA
 // abra incluso sin internet. Los datos de Firebase NO se cachean
 // (siempre van a la red, así la tienda está actualizada).
-const CACHE = "picogacha-v2";
+const CACHE = "picogacha-v3";
 const SHELL = [
   "./",
   "./index.html",
