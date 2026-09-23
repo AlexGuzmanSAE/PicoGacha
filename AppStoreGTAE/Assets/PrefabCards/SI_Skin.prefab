@@ -131,12 +131,32 @@ MonoBehaviour:
   m_VertexBufferAutoSizeReduction: 0
   m_useMaxVisibleDescender: 1
   m_pageToDisplay: 1
-  m_margin: {x: -55.7212, y: 0, z: -52.01799, w: 0}
+  m_margin: {x: 0, y: 0, z: 0, w: 0}
   m_isUsingLegacyAnimationComponent: 0
   m_isVolumetricText: 0
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &6100000000000000001
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5583353989192673271}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 306cc8c2b49d7114eaa3623786fc2126, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.LayoutElement
+  m_IgnoreLayout: 0
+  m_MinWidth: -1
+  m_MinHeight: -1
+  m_PreferredWidth: 530
+  m_PreferredHeight: 1070
+  m_FlexibleWidth: -1
+  m_FlexibleHeight: -1
+  m_LayoutPriority: 1
 --- !u!1 &1637766301967161593
 GameObject:
   m_ObjectHideFlags: 0
@@ -286,6 +306,7 @@ GameObject:
   - component: {fileID: 2513350690922976727}
   - component: {fileID: 5467967154018766179}
   - component: {fileID: 5186308146929540983}
+  - component: {fileID: 6100000000000000001}
   m_Layer: 5
   m_Name: SI_Skin
   m_TagString: Untagged
@@ -367,10 +388,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SkinCardUI
   skinImage: {fileID: 7066003328755318998}
-  nameText: {fileID: 0}
+  nameText: {fileID: 1807542179761776492}
   priceText: {fileID: 8385196356638822387}
-  buyButton: {fileID: 0}
-  buyButtonLabel: {fileID: 0}
+  buyButton: {fileID: 8054005160944948440}
+  buyButtonLabel: {fileID: 3334521826148501162}
 --- !u!1 &6429350498430590507
 GameObject:
   m_ObjectHideFlags: 0
